@@ -37,13 +37,13 @@ and can be searched, diffed and versioned.
 | 8 | Host header injection |
 | 9 | HTTP request smuggling |
 | 10 | Web socket vulnerabilities |
+| 11 | Server-side template injection (SSTI) |
+| 12 | JWT attacks |
 
 **Still to export from Notion**
 
 | Topic | Notion location |
 |---|---|
-| Server-side template injection | Web application → Nothing Much |
-| JWT attacks | Web application → Nothing Much |
 | Insecure deserialization | Web application → Nothing Much |
 | Web cache poisoning | Web application → Nothing Much |
 | Web cache deception | Web application → Nothing Much |

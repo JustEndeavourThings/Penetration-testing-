@@ -20,11 +20,11 @@ how to test for it, and the lab/payload steps that go with it.
 8. [Host header injection](#8-host-header-injection)
 9. [HTTP request smuggling](#9-http-request-smuggling)
 10. [Web socket vulnerabilities](#10-web-socket-vulnerabilities)
+11. [Server-side template injection (SSTI)](#11-server-side-template-injection-ssti)
+12. [JWT attacks](#12-jwt-attacks)
 
 **Pending export** (present in Notion, body text not yet pulled)
 
-11. Server-side template injection (SSTI)
-12. JWT attacks
 13. Insecure deserialization
 14. Web cache poisoning
 15. Web cache deception
@@ -511,12 +511,103 @@ and handle data correctly on both the server and client side.
 
 ---
 
-> **Import status:** sections 1–10 above are mirrored from Notion. The topics
+---
+
+## 11. Server-side template injection (SSTI)
+
+Templates allow websites to automatically fill data into pages instead of creating
+separate pages for everything.
+
+Server-side template injection is when an attacker is able to use native template
+syntax to inject a malicious payload into a template, which is then executed
+server-side.
+
+Sometimes we come across a website that displays info like "hello Zeeshan" — this
+uses template functionality, so if Ali logs in it shows "hello Ali". If the
+template sanitises correctly then it's fine; but if the web application uses the
+data directly and does not sanitise it, we can add a payload and it will be used
+as code and executed.
+
+### Methodology
+
+1. **Detect** — plain context, code context.
+2. **Identify** — fingerprint the template engine (a decision chart helps here).
+3. **Exploit**
+
+Detection payloads:
+
+```
+{{7*7}}   ${7*7}   #{7*7}   <%= 7*7 %>
+```
+
+### Labs
+
+1. **Basic server-side template injection** — clicking "view details" shows
+   "unfortunately..." in the URL itself. Add `<%= 7*7 %>`; if "unfortunately"
+   becomes `49` the parameter is vulnerable. Change the payload to:
+   ```
+   <%= system("id") %>
+   ```
+   in the URL or in the intercepted request, and use it to delete `morale.txt`.
+2. **Basic server-side template injection (code context)** — after login there is a
+   "preferred name" feature that uses `user.name`. Search for the reflection: when
+   you comment, the username is reflected. Intercept the preferred-name request and
+   add the payload:
+   ```
+   }}{% import os %} {{os.system('pwd')}}
+   ```
+   The leading `}}` escapes the previous template. When the payload produced an
+   error saying the application didn't recognise the syntax, it revealed that the
+   **Tornado** template engine is in use.
+
+---
+
+## 12. JWT attacks
+
+JSON Web Tokens (JWTs) are a standardised format for sending cryptographically
+signed JSON data between systems. Unlike classic session tokens, all the data the
+server needs is stored client-side within the JWT itself. A JWT consists of three
+parts: a **header**, a **payload** and a **signature**.
+
+With a symmetric algorithm the signature is made by base64url-encoding the header
+and payload and then:
+
+```
+data = header_b64 + "." + payload_b64
+signature = HMAC-SHA256(data, secret_key)
+```
+
+The server will reject a token with no signature.
+
+Asymmetric tokens use a key pair — `public` (`n`, `e`) and `private`
+(`d`, `p`, `q`, `dp`, `dq`, `qi`) components:
+
+- The auth server (Okta, Auth0, Keycloak, or your own) generates the pair.
+- The **private key** is kept secret inside the auth server.
+
+**Impact:** escalate your own privileges or impersonate other users, taking full
+control of their accounts.
+
+**How it arises:** flawed JWT handling within the application itself.
+
+### Labs
+
+1. **JWT authentication bypass via unverified signature** — the developer only
+   calls `decode()` and never `verify()`. The token is
+   `header.payload.signature`. Capture the request; `/admin` is only accessible to
+   `administrator`. Select only the payload section of the JWT, change `wiener` to
+   `administrator`, apply the changes and delete carlos.
+2. **JWT authentication bypass via `alg: none`** — the token is accepted without a
+   signature. Decode the header, set the algorithm to `none`, delete the signature
+   but leave the trailing dot in place, then change the username in the payload to
+   `administrator`.
+
+---
+
+> **Import status:** sections 1–12 above are mirrored from Notion. The topics
 > listed below exist in the Notion page but their body text has not been exported
 > yet:
 >
-> 11. Server-side template injection (SSTI)
-> 12. JWT attacks
 > 13. Insecure deserialization
 > 14. Web cache poisoning
 > 15. Web cache deception
